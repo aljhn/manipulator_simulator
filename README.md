@@ -9,7 +9,7 @@
 
 ## Planned Features:
 * Prismatic joints
-* Simulated dynamics derived symbolically with Lagrangian mechanics
+* Simulated dynamics derived symbolically with SymPy and Lagrangian mechanics
 * Numerical integration based on Runge-Kutta methods
 * Different types of nonlinear control systems, examples: PD+, feedback linearization and adaptive controllers
 * Inverse kinematics based on constrained optimization
