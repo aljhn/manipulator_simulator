@@ -1,5 +1,6 @@
 import numpy as np
 import sympy as sp
+import sympy.physics.mechanics as mech
 
 
 def rotationX(angle):
@@ -24,8 +25,6 @@ def rotationZ(angle):
     ])
 
 
-t = sp.symbols("t")
-
 joint_index = 0
 
 
@@ -38,15 +37,19 @@ class Joint:
         self.alpha = alpha
 
         global joint_index
-        self.q = sp.symbols("q_" + str(joint_index), cls=sp.Function)
+        #self.q = sp.symbols("q_" + str(joint_index), cls=sp.Function, real=True)
+        #self.u = sp.symbols("u_" + str(joint_index), cls=sp.Function, real=True)
+        self.q = mech.dynamicsymbols("q_" + str(joint_index), real=True)
+        self.q_dot = mech.dynamicsymbols("q_" + str(joint_index), 1, real=True)
+        self.u = mech.dynamicsymbols("u_" + str(joint_index), real=True)
         joint_index += 1
 
         self.H = self.transformation()
-        self.forward_transformation = sp.lambdify(self.q(t), self.H, "numpy")
+        self.forward_transformation = sp.lambdify(self.q, self.H, "numpy")
     
     def transformation(self):
         H_z = sp.zeros(4, 4)
-        H_z[0:3, 0:3] = rotationZ(self.theta + self.q(t))
+        H_z[0:3, 0:3] = rotationZ(self.theta + self.q)
         H_z[2, 3] = self.d
         H_z[3, 3] = 1
         
@@ -105,6 +108,9 @@ class Manipulator:
 
         k = 0.01
         iterations = 5
+        
+        R_r = H_r[0:3, 0:3]
+        x_r, y_r, z_r = H_r[0:3, 3]
 
         for i in range(iterations):
             J_omega, J_v = self.jacobians(q)
@@ -113,9 +119,8 @@ class Manipulator:
 
             transformations = self.forward_transformations(q)
             H = transformations[-1]
-
             R = H[0:3, 0:3]
-            R_r = H_r[0:3, 0:3]
+            x, y, z = H[0:3, 3]
 
             # Poisson equation for rotation matrices solved for angular velocity omega
             # The time derivative is approximated as the difference from the reference to the current rotation
@@ -123,11 +128,51 @@ class Manipulator:
             omega_e = np.array([-S[1, 2], S[0, 2], -S[0, 1]])
 
             # Also approximate the time derivative as the difference
-            x, y, z = H[0:3, 3]
-            x_r, y_r, z_r = H_r[0:3, 3]
             v_e = np.array([x_r - x, y_r - y, z_r - z])
             
             dq = np.dot(J_inv, np.concatenate((omega_e, v_e)))
             q += k * dq
         
         return q
+    
+    def compute_dynamics(self, m, J, g=9.81):
+        K = 0
+        P = 0
+
+        H = sp.eye(4)
+        for i in range(len(self.joints)):
+            H *= self.joints[i].H
+
+            p = H[0:3, 3]
+            v = sp.diff(p)
+
+            K += (0.5 * m[i] * v.T * v)[0]
+
+            #R = H[0:3, 0:3]
+            #S = sp.diff(R, t) * R.T
+            #omega = sp.Matrix([-S[1, 2], S[0, 2], -S[0, 1]])
+            #K += (0.5 * omega.T * R * sp.Matrix([[J[i], 0, 0], [0, J[i], 0], [0, 0, 0]]) * R.T * omega)[0] # TODO: noe er feil
+            #K += (0.5 * J[i] * omega.T * omega)[0]
+            
+            P += -m[i] * g * p[1]
+
+        print("Lagrangian")
+        L = K - P
+        #L = sp.simplify(K - P)
+
+        q = [joint.q for joint in self.joints]
+        q_dot = [joint.q_dot for joint in self.joints]
+
+        print("Euler-Lagrange")
+        LM = mech.LagrangesMethod(L, q)
+        LM.form_lagranges_equations()
+
+        self.M = sp.lambdify([*q, *q_dot], sp.simplify(LM.mass_matrix), "numpy")
+        self.f = sp.lambdify([*q, *q_dot], sp.simplify(LM.forcing), "numpy")
+
+            
+    def dynamics(self, q, q_dot, u):
+        M = self.M(*q, *q_dot)
+        f = self.f(*q, *q_dot)[:, 0] + u
+        q_ddot = np.linalg.solve(M, f)
+        return np.concatenate((q_dot, q_ddot))

@@ -15,11 +15,12 @@ screen = pygame.display.set_mode((width, height))
 
 white = (200, 200, 200)
 
-joint1 = Joint(-sp.pi / 2, 0, 150, 0)
+joint1 = Joint(-sp.pi / 4, 0, 150, 0)
 joint2 = Joint(sp.pi / 4, 0, 150, 0)
 joint3 = Joint(sp.pi / 4, 0, 150, 0)
 joints = [joint1, joint2, joint3]
 manipulator = Manipulator(joints)
+manipulator.compute_dynamics([1, 1, 1], [0, 0, 0])
 
 
 def main():
@@ -29,7 +30,12 @@ def main():
     
     time = 0
 
-    q_r = np.zeros(3)
+    q = np.zeros(len(joints))
+    q_dot = np.zeros(len(joints))
+
+    u = np.zeros(len(joints))
+
+    q_r = np.zeros(len(joints))
 
     run = True
     while run:
@@ -54,6 +60,10 @@ def main():
         
         q_r = manipulator.inverse_kinematics(H_r, q_r)
 
+        dynamics = manipulator.dynamics(q, q_dot, u)
+        q += dynamics[:len(joints)] * delta_time
+        q_dot += dynamics[len(joints):] * delta_time
+
         time += delta_time
         
         
@@ -61,7 +71,7 @@ def main():
 
         x_prev = 0
         y_prev = 0
-        transformations = manipulator.forward_transformations(q_r)
+        transformations = manipulator.forward_transformations(q)
         for H in transformations[1:]:
             x, y = H[0:2, 3]
             pygame.draw.line(screen, white, (width // 2 + x_prev, height // 2 + y_prev), (width // 2 + x, height // 2 + y), width=5)
