@@ -106,7 +106,7 @@ class Manipulator:
         else:
             q = prev_q
 
-        k = 0.01
+        k = 0.1
         iterations = 5
         
         R_r = H_r[0:3, 0:3]
@@ -132,6 +132,8 @@ class Manipulator:
             
             dq = np.dot(J_inv, np.concatenate((omega_e, v_e)))
             q += k * dq
+
+            k *= 0.9 # make it more numerically stable
         
         return q
     
@@ -158,7 +160,7 @@ class Manipulator:
 
         print("Lagrangian")
         L = K - P
-        #L = sp.simplify(K - P)
+        #L = sp.simplify(K - P) # really slow
 
         q = [joint.q for joint in self.joints]
         q_dot = [joint.q_dot for joint in self.joints]
@@ -167,8 +169,15 @@ class Manipulator:
         LM = mech.LagrangesMethod(L, q)
         LM.form_lagranges_equations()
 
-        self.M = sp.lambdify([*q, *q_dot], sp.simplify(LM.mass_matrix), "numpy")
-        self.f = sp.lambdify([*q, *q_dot], sp.simplify(LM.forcing), "numpy")
+        # These simplififcations are also really slow and can take multiple minutes at startup
+        # They do however make the overall program run faster while simulating
+        #self.M = sp.lambdify([*q, *q_dot], sp.simplify(LM.mass_matrix), "numpy")
+        #self.f = sp.lambdify([*q, *q_dot], sp.simplify(LM.forcing), "numpy")
+        self.M = sp.lambdify([*q, *q_dot], LM.mass_matrix, "numpy")
+        self.f = sp.lambdify([*q, *q_dot], LM.forcing, "numpy")
+
+        #self.M_dot = sp.lambdify([*q, *q_dot], sp.simplify(sp.diff(LM.mass_matrix)), "numpy")
+        self.M_dot = sp.lambdify([*q, *q_dot], sp.diff(LM.mass_matrix), "numpy")
 
             
     def dynamics(self, q, q_dot, u):
