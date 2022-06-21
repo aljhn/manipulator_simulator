@@ -24,7 +24,7 @@ joints = [joint1, joint2]
 manipulator = Manipulator(joints)
 
 m = [1, 1, 1]
-J = [0, 0, 0]
+J = [10, 10, 10]
 manipulator.compute_dynamics(m, J)
 
 

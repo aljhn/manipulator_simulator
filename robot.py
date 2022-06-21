@@ -150,22 +150,22 @@ class Manipulator:
 
             K += (0.5 * m[i] * v.T * v)[0]
 
-            #R = H[0:3, 0:3]
-            #S = sp.diff(R, t) * R.T
-            #omega = sp.Matrix([-S[1, 2], S[0, 2], -S[0, 1]])
-            #K += (0.5 * omega.T * R * sp.Matrix([[J[i], 0, 0], [0, J[i], 0], [0, 0, 0]]) * R.T * omega)[0] # TODO: noe er feil
-            #K += (0.5 * J[i] * omega.T * omega)[0]
+            R = H[0:3, 0:3]
+            S = sp.diff(R) * R.T
+            omega = sp.Matrix([-S[1, 2], S[0, 2], -S[0, 1]])
+            #K += (0.5 * omega.T * R * sp.Matrix([[0, 0, 0], [0, J[i], 0], [0, 0, J[i]]]) * R.T * omega)[0]
+            K += (0.5 * J[i] * omega.T * omega)[0]
             
             P += -m[i] * g * p[1]
 
-        print("Lagrangian")
+        K = sp.factor(K)
+        P = sp.factor(P)
+
         L = K - P
-        #L = sp.simplify(K - P) # really slow
 
         q = [joint.q for joint in self.joints]
         q_dot = [joint.q_dot for joint in self.joints]
 
-        print("Euler-Lagrange")
         LM = mech.LagrangesMethod(L, q)
         LM.form_lagranges_equations()
 
@@ -176,8 +176,11 @@ class Manipulator:
         self.M = sp.lambdify([*q, *q_dot], LM.mass_matrix, "numpy")
         self.f = sp.lambdify([*q, *q_dot], LM.forcing, "numpy")
 
-        #self.M_dot = sp.lambdify([*q, *q_dot], sp.simplify(sp.diff(LM.mass_matrix)), "numpy")
-        self.M_dot = sp.lambdify([*q, *q_dot], sp.diff(LM.mass_matrix), "numpy")
+        try:
+            #self.M_dot = sp.lambdify([*q, *q_dot], sp.simplify(sp.diff(LM.mass_matrix)), "numpy")
+            self.M_dot = sp.lambdify([*q, *q_dot], sp.diff(LM.mass_matrix), "numpy")
+        except ValueError:
+            self.M_dot = sp.lambdify([*q, *q_dot], sp.zeros(*sp.shape(LM.mass_matrix)), "numpy")
 
             
     def dynamics(self, q, q_dot, u):
