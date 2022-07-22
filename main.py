@@ -5,7 +5,7 @@ import numpy as np
 import sympy as sp
 
 from robot import Joint, Manipulator
-from controller import ZeroController
+from controller import ZeroController, PDController, PDGravityController, FeedbackLinearizationController
 
 
 pygame.init()
@@ -17,6 +17,8 @@ screen_scale = 100
 
 white = (200, 200, 200)
 grey = (100, 100, 100)
+red = (100, 0, 0)
+
 
 joint1 = Joint(-sp.pi / 4, 0, 2, 0, 1, 10)
 joint2 = Joint(sp.pi / 4, 0, 2, 0, 1, 10)
@@ -25,7 +27,11 @@ manipulator = Manipulator(joint1, joint2)
 
 manipulator.compute_dynamics()
 
-controller = ZeroController()
+
+#controller = ZeroController()
+#controller = PDController(k_p=10000, k_d=1000)
+#controller = PDGravityController(k_p=10000, k_d=1000, manipulator=manipulator)
+controller = FeedbackLinearizationController(k_p=1000, k_d=100, manipulator=manipulator)
 
 
 def main():
@@ -89,24 +95,7 @@ def main():
         q_r_prev = q_r
         q_r_dot_prev = q_r_dot
 
-
-        # Control systems
-        #u = np.zeros(len(manipulator.joints))
-        
-        # PD+ controller
-        #k_p = 1000
-        #k_d = 100
-        #u_ff = manipulator.f(*q, *q_dot)[:, 0] + np.dot(manipulator.M(*q, *q_dot), q_r_ddot) - 0.5 * np.dot(manipulator.M_dot(*q, *q_dot), q_dot - q_r_dot)
-        #u_fb = - k_p * (q - q_r) - k_d * (q_dot - q_r_dot)
-        #u = u_ff + u_fb
-
-        # Feedback linearization + full state feedback
-        #k_p = 1
-        #k_d = 1
-        #v = q_r_ddot - k_p * (q - q_r - k_d * (q_dot - q_r_dot))
-        #u = np.dot(manipulator.M(*q, *q_dot), v) + manipulator.f(*q, *q_dot)[:, 0]
-
-        u = controller.get(q, q_dot)
+        u = controller.get(q, q_dot, q_r, q_r_dot, q_r_ddot)
 
 
         # Euler integration
@@ -148,8 +137,8 @@ def main():
             x_prev, y_prev = x, y
         pygame.draw.circle(screen, white, (width // 2 + x_prev, height // 2 + y_prev), 10)
 
-        pygame.draw.ellipse(screen, (100, 0, 0), (width // 2 - 3 * screen_scale, height // 2 - 2 * screen_scale, 2 * 3 * screen_scale, 2 * 2 * screen_scale), width=1)
-        pygame.draw.circle(screen, (100, 0, 0), (width // 2 + x_r * screen_scale, height // 2 + y_r * screen_scale), 10)
+        pygame.draw.ellipse(screen, red, (width // 2 - 3 * screen_scale, height // 2 - 2 * screen_scale, 2 * 3 * screen_scale, 2 * 2 * screen_scale), width=1)
+        pygame.draw.circle(screen, red, (width // 2 + x_r * screen_scale, height // 2 + y_r * screen_scale), 10)
 
         fps = clock.get_fps()
         fps_text = font.render("FPS: {:.0f}".format(fps), True, white)
