@@ -4,7 +4,8 @@ import copy
 import numpy as np
 import sympy as sp
 
-from robot import *
+from robot import Joint, Manipulator
+from controller import ZeroController
 
 
 pygame.init()
@@ -17,15 +18,14 @@ screen_scale = 100
 white = (200, 200, 200)
 grey = (100, 100, 100)
 
-joint1 = Joint(-sp.pi / 4, 0, 2, 0)
-joint2 = Joint(sp.pi / 4, 0, 2, 0)
-joint3 = Joint(sp.pi / 4, 0, 1.5, 0)
-joints = [joint1, joint2]
-manipulator = Manipulator(joints)
+joint1 = Joint(-sp.pi / 4, 0, 2, 0, 1, 10)
+joint2 = Joint(sp.pi / 4, 0, 2, 0, 1, 10)
+joint3 = Joint(sp.pi / 4, 0, 1.5, 0, 1, 10)
+manipulator = Manipulator(joint1, joint2)
 
-m = [1, 1, 1]
-J = [10, 10, 10]
-manipulator.compute_dynamics(m, J)
+manipulator.compute_dynamics()
+
+controller = ZeroController()
 
 
 def main():
@@ -43,21 +43,23 @@ def main():
     ])
     butcher_b = np.array([1 / 6, 1 / 3, 1 / 3, 1 / 6])
     butcher_c = np.array([0, 1 / 2, 1 / 2, 1])
-    k = np.zeros((2 * len(joints), len(butcher_b)))
+    k = np.zeros((2 * len(manipulator.joints), len(butcher_b)))
 
-    q = np.zeros(len(joints))
-    q_dot = np.zeros(len(joints))
+    q = np.zeros(len(manipulator.joints))
+    q_dot = np.zeros(len(manipulator.joints))
 
-    q_r = np.zeros(len(joints))
+    q_r = np.zeros(len(manipulator.joints))
     
-    q_r_prev = np.zeros(len(joints))
-    q_r_dot_prev = np.zeros(len(joints))
+    q_r_prev = np.zeros(len(manipulator.joints))
+    q_r_dot_prev = np.zeros(len(manipulator.joints))
 
     fps = 0 # 0 = uncapped
 
     run = True
     while run:
         delta_time = clock.tick(fps) / 1000
+        if delta_time == 0:
+            delta_time = 0.001
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
@@ -89,7 +91,7 @@ def main():
 
 
         # Control systems
-        u = np.zeros(len(joints))
+        #u = np.zeros(len(manipulator.joints))
         
         # PD+ controller
         #k_p = 1000
@@ -104,20 +106,22 @@ def main():
         #v = q_r_ddot - k_p * (q - q_r - k_d * (q_dot - q_r_dot))
         #u = np.dot(manipulator.M(*q, *q_dot), v) + manipulator.f(*q, *q_dot)[:, 0]
 
+        u = controller.get(q, q_dot)
+
 
         # Euler integration
         #dynamics = manipulator.dynamics(q, q_dot, u)
-        #q += dynamics[:len(joints)] * delta_time
-        #q_dot += dynamics[len(joints):] * delta_time
+        #q += dynamics[:len(manipulator.joints)] * delta_time
+        #q_dot += dynamics[len(manipulator.joints):] * delta_time
 
         # Explicit Runge-Kutta
         for i in range(len(butcher_b)):
             qq = delta_time * np.dot(k, butcher_A[i, :])
-            k[:, i] = manipulator.dynamics(q + qq[:len(joints)], q_dot + qq[len(joints):], u)
+            k[:, i] = manipulator.dynamics(q + qq[:len(manipulator.joints)], q_dot + qq[len(manipulator.joints):], u)
         
         qq = delta_time * np.dot(k, butcher_b)
-        q += qq[:len(joints)]
-        q_dot += qq[len(joints):]
+        q += qq[:len(manipulator.joints)]
+        q_dot += qq[len(manipulator.joints):]
 
         time += delta_time
         

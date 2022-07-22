@@ -25,24 +25,23 @@ def rotationZ(angle):
     ])
 
 
-joint_index = 0
-
-
 class Joint:
 
-    def __init__(self, theta, d, a, alpha):
+    joint_index = 0
+
+    def __init__(self, theta, d, a, alpha, m, J):
         self.theta = theta
         self.d = d
         self.a = a
         self.alpha = alpha
+        
+        self.m = m
+        self.J = J
 
-        global joint_index
-        #self.q = sp.symbols("q_" + str(joint_index), cls=sp.Function, real=True)
-        #self.u = sp.symbols("u_" + str(joint_index), cls=sp.Function, real=True)
-        self.q = mech.dynamicsymbols("q_" + str(joint_index), real=True)
-        self.q_dot = mech.dynamicsymbols("q_" + str(joint_index), 1, real=True)
-        self.u = mech.dynamicsymbols("u_" + str(joint_index), real=True)
-        joint_index += 1
+        self.q = mech.dynamicsymbols("q_" + str(Joint.joint_index), real=True)
+        self.q_dot = mech.dynamicsymbols("q_" + str(Joint.joint_index), 1, real=True)
+        self.u = mech.dynamicsymbols("u_" + str(Joint.joint_index), real=True)
+        Joint.joint_index += 1
 
         self.H = self.transformation()
         self.forward_transformation = sp.lambdify(self.q, self.H, "numpy")
@@ -64,7 +63,7 @@ class Joint:
 
 class Manipulator:
 
-    def __init__(self, joints):
+    def __init__(self, *joints):
         self.joints = joints
 
     def forward_transformations(self, q):
@@ -137,7 +136,7 @@ class Manipulator:
         
         return q
     
-    def compute_dynamics(self, m, J, g=9.81):
+    def compute_dynamics(self, g=9.81):
         K = 0
         P = 0
 
@@ -148,15 +147,15 @@ class Manipulator:
             p = H[0:3, 3]
             v = sp.diff(p)
 
-            K += (0.5 * m[i] * v.T * v)[0]
+            K += (0.5 * self.joints[i].m * v.T * v)[0]
 
             R = H[0:3, 0:3]
             S = sp.diff(R) * R.T
             omega = sp.Matrix([-S[1, 2], S[0, 2], -S[0, 1]])
-            #K += (0.5 * omega.T * R * sp.Matrix([[0, 0, 0], [0, J[i], 0], [0, 0, J[i]]]) * R.T * omega)[0]
-            K += (0.5 * J[i] * omega.T * omega)[0]
+            #K += (0.5 * omega.T * R * sp.Matrix([[0, 0, 0], [0, self.joints[i].J, 0], [0, 0, self.joints[i].J]]) * R.T * omega)[0]
+            K += (0.5 * self.joints[i].J * omega.T * omega)[0]
             
-            P += -m[i] * g * p[1]
+            P += -self.joints[i].m * g * p[1]
 
         K = sp.factor(K)
         P = sp.factor(P)
