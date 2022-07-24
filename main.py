@@ -6,6 +6,7 @@ from robot import Joint, Manipulator
 from controller import PDController, FeedbackLinearizationController
 from renderer import Renderer
 from trajectory import EllipseTrajectory2D
+from integrator import ExplicitEuler, ExplicitRK4
 
 
 width = 800
@@ -29,18 +30,11 @@ controller = PDController(k_p=10000, k_d=1000)
 #controller = FeedbackLinearizationController(k_p=1000, k_d=100, manipulator=manipulator)
 
 
+#integrator = ExplicitEuler(len(manipulator.joints))
+integrator = ExplicitRK4(len(manipulator.joints))
+
+
 def main():
-
-    butcher_A = np.array([
-        [0, 0, 0, 0],
-        [1 / 2, 0, 0, 0],
-        [0, 1 / 2, 0, 0],
-        [0, 0, 1, 0]
-    ])
-    butcher_b = np.array([1 / 6, 1 / 3, 1 / 3, 1 / 6])
-    butcher_c = np.array([0, 1 / 2, 1 / 2, 1])
-    k = np.zeros((2 * len(manipulator.joints), len(butcher_b)))
-
     q = np.zeros(len(manipulator.joints))
     q_dot = np.zeros(len(manipulator.joints))
 
@@ -58,19 +52,7 @@ def main():
 
         u = controller.get(q, q_dot, q_r, q_r_dot, q_r_ddot)
 
-        # Euler integration
-        """dynamics = manipulator.dynamics(q, q_dot, u)
-        q += dynamics[:len(manipulator.joints)] * delta_time
-        q_dot += dynamics[len(manipulator.joints):] * delta_time"""
-
-        # Explicit Runge-Kutta
-        for i in range(len(butcher_b)):
-            qq = delta_time * np.dot(k, butcher_A[i, :])
-            k[:, i] = manipulator.dynamics(q + qq[:len(manipulator.joints)], q_dot + qq[len(manipulator.joints):], u)
-        
-        qq = delta_time * np.dot(k, butcher_b)
-        q += qq[:len(manipulator.joints)]
-        q_dot += qq[len(manipulator.joints):]
+        integrator.step(manipulator, q, q_dot, u, delta_time)
 
     sys.exit()
 
