@@ -101,12 +101,12 @@ class Manipulator:
     # Works for both position and orientation
     def inverse_kinematics(self, H_r, prev_q=None):
         if prev_q is None:
-            q = np.zeros(3)
+            q = np.zeros(len(self.joints))
         else:
             q = prev_q
 
         k = 0.1
-        iterations = 5
+        iterations = 10
         
         R_r = H_r[0:3, 0:3]
         x_r, y_r, z_r = H_r[0:3, 3]
@@ -131,8 +131,6 @@ class Manipulator:
             
             dq = np.dot(J_inv, np.concatenate((omega_e, v_e)))
             q += k * dq
-
-            k *= 0.9 # make it more numerically stable
         
         return q
     
@@ -186,4 +184,8 @@ class Manipulator:
         M = self.M(*q, *q_dot)
         f = self.f(*q, *q_dot)[:, 0] + u
         q_ddot = np.linalg.solve(M, f)
+        #print(M)
+        #print(f)
+        #print(q_ddot)
+        #print()
         return np.concatenate((q_dot, q_ddot))

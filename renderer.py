@@ -6,7 +6,7 @@ class Renderer:
 
     color_white = (200, 200, 200)
     color_grey = (100, 100, 100)
-    color_red = (100, 0, 0)
+    color_red = (150, 0, 0)
 
     def __init__(self, width, height, scale, fps=0):
         self.width = width
@@ -52,13 +52,13 @@ class Renderer:
         
         self.screen.fill((0, 0, 0))
 
-        self.render_manipulator(manipulator, q, Renderer.color_white)
+        if trajectory is not None:
+            self.render_trajectory(time, trajectory, trajectory_points)
 
-        if q_r:
+        if q_r is not None:
             self.render_manipulator(manipulator, q_r, Renderer.color_grey)
 
-        if trajectory:
-            self.render_trajectory(time, trajectory, trajectory_points)
+        self.render_manipulator(manipulator, q, Renderer.color_white)
 
         fps = self.clock.get_fps()
         fps_text = self.font.render(f"FPS: {fps:.0f}", True, Renderer.color_white)
