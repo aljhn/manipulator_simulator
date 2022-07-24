@@ -14,9 +14,12 @@ class Renderer:
         self.scale = scale
         self.fps = fps
 
+        self.time = 0
+    
+    def init(self):
         pygame.init()
         
-        self.screen = pygame.display.set_mode((width, height))
+        self.screen = pygame.display.set_mode((self.width, self.height))
         self.clock = pygame.time.Clock()
         self.font = pygame.font.Font(None, 28)
     
@@ -42,8 +45,9 @@ class Renderer:
         pygame.draw.circle(self.screen, Renderer.color_red, (self.width // 2 + x_r[0] * self.scale, self.height // 2 + y_r[0] * self.scale), 10)
     
     def render(self, manipulator, q, q_r=None, trajectory=None, trajectory_points=100):
-        time = pygame.time.get_ticks() / 1000
         delta_time = self.clock.tick(self.fps) / 1000
+
+        self.time += delta_time
         
         run = True
         for event in pygame.event.get():
@@ -52,11 +56,11 @@ class Renderer:
         
         self.screen.fill((0, 0, 0))
 
-        if trajectory is not None:
-            self.render_trajectory(time, trajectory, trajectory_points)
-
         if q_r is not None:
             self.render_manipulator(manipulator, q_r, Renderer.color_grey)
+
+        if trajectory is not None:
+            self.render_trajectory(self.time, trajectory, trajectory_points)
 
         self.render_manipulator(manipulator, q, Renderer.color_white)
 
@@ -66,4 +70,4 @@ class Renderer:
 
         pygame.display.flip()
         
-        return time, delta_time, run
+        return self.time, delta_time, run
