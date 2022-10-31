@@ -26,8 +26,8 @@ manipulator.compute_dynamics()
 trajectory = EllipseTrajectory2D(cycle_time=5, radius_x=3, radius_y=2)
 
 
-controller = PDController(k_p=10000, k_d=1000)
-#controller = FeedbackLinearizationController(k_p=1000, k_d=100, manipulator=manipulator)
+controller = PDController(k_p=1000, k_d=100)
+#controller = FeedbackLinearizationController(k_p=100, k_d=10, manipulator=manipulator)
 
 
 #integrator = ExplicitEuler(len(manipulator.joints))

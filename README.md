@@ -9,3 +9,8 @@
 * Numerical integration based on explicit Runge-Kutta methods
 * Trajectory tracking with various implemented controllers
 * Rendered in 2D with Pygame
+
+<div align="center">
+    <img src="screenshot.png" width="600">
+    <p>Simulation running in PyGame. Target trajectory in red, IK-computed joint references in grey and actual joints in white.</p>
+</div>
